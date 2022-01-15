@@ -1,17 +1,17 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\DataFixtures;
 
 use App\Entity\Order;
 use App\Entity\OrderLine;
 use App\Entity\Product;
+use App\Entity\Address;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use Faker\Generator;
 
-class AppFixtures extends Fixture
+class AppFixtures extends Fixture implements DependentFixtureInterface
 {
     private Generator $faker;
 
@@ -22,13 +22,19 @@ class AppFixtures extends Fixture
 
     public function load(ObjectManager $manager)
     {
+        $addressRepository = $manager->getRepository(Address::class);
+
+        $addresses = [
+            $addressRepository->findOneBy(['streetName' => "Rue de la Paix"]),
+            $addressRepository->findOneBy(['postalCode' => "99999999"]),
+            $addressRepository->findOneBy(['city' => "Berlin"])
+        ];
+
         for ($i = 1; $i < 30; $i++) {
             $order = new Order();
             $order->setContactEmail($this->faker->randomElement(['', $this->faker->email]));
             $order->setName('#'. mt_rand(10, 100000));
-            $order->setShippingAddress('8 rue de la paix');
-            $order->setShippingZipcode((string) (mt_rand(10, 95) * 1000));
-            $order->setShippingCountry($this->faker->randomElement(['France', $this->faker->country]));
+            $order->setShippingAddress($addresses[array_rand($addresses)]);
 
             $nbLines = mt_rand(1, 10);
             for ($j = 1; $j < $nbLines; $j++) {
@@ -55,5 +61,10 @@ class AppFixtures extends Fixture
         }
 
         $manager->flush();
+    }
+
+    public function getDependencies(): array
+    {
+        return array("App\DataFixtures\AddressFixtures");
     }
 }

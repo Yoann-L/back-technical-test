@@ -29,7 +29,7 @@ class OrderLine
     private $total;
 
     /**
-     * @ORM\ManyToOne(targetEntity="Order", inversedBy="lines")
+     * @ORM\ManyToOne(targetEntity="Order", inversedBy="orderLines")
      * @ORM\JoinColumn(name="order_id", referencedColumnName="id")
      */
     private $order;

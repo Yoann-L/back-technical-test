@@ -4,7 +4,9 @@ namespace App\Entity;
 
 use App\Repository\OrderRepository;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
  * @ORM\Entity(repositoryClass=OrderRepository::class)
@@ -12,15 +14,20 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Order
 {
+    const HEAVY = 40000;
+    const HEAVY_ISSUE = 60000;
+
     /**
      * @ORM\Id
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
+     * @Groups({"auto_tags", "order_analytic_report"})
      */
     private $id;
 
     /**
      * @ORM\Column(type="string", length=255)
+     * @Groups({"auto_tags", "order_analytic_report"})
      */
     private string $name;
 
@@ -30,33 +37,31 @@ class Order
     private string $contactEmail;
 
     /**
-     * @ORM\Column(type="string", length=255)
-     */
-    private string $shippingAddress;
-
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    private string $shippingZipcode;
-
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    private string $shippingCountry;
-
-    /**
-     * @ORM\Column(type="integer", nullable=true)
-     */
-    private int $total;
-
-    /**
      * @ORM\OneToMany(targetEntity="OrderLine", mappedBy="order")
      */
-    private $lines;
+    private $orderLines;
+
+    /**
+     * @ORM\ManyToMany(targetEntity=Tag::class, mappedBy="orders")
+     * @Groups({"auto_tags"})
+     */
+    private $tags;
+
+    /**
+     * @ORM\OneToOne(targetEntity=OrderAnalyticReport::class, mappedBy="order", cascade={"persist", "remove"})
+     */
+    private $orderAnalyticReport;
+
+    /**
+     * @ORM\ManyToOne(targetEntity=Address::class)
+     * @ORM\JoinColumn(nullable=false)
+     */
+    private $shippingAddress;
 
     public function __construct()
     {
-        $this->lines = new ArrayCollection();
+        $this->orderLines = new ArrayCollection();
+        $this->tags = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -76,18 +81,6 @@ class Order
         return $this;
     }
 
-    public function getTotal(): ?int
-    {
-        return $this->total;
-    }
-
-    public function setTotal(?int $total): self
-    {
-        $this->total = $total;
-
-        return $this;
-    }
-
     public function getContactEmail(): string
     {
         return $this->contactEmail;
@@ -98,42 +91,76 @@ class Order
         $this->contactEmail = $contactEmail;
     }
 
-    public function getShippingAddress(): string
+    /**
+     * @return Collection|OrderLines[]
+     */
+    public function getOrderLines(): Collection
+    {
+        return $this->orderLines;
+    }
+
+    public function addOrderLine(OrderLine $orderLine): self
+    {
+        if (!$this->orderLines->contains($orderLine)) {
+            $this->orderLines[] = $orderLine;
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Tag[]
+     */
+    public function getTags(): Collection
+    {
+        return $this->tags;
+    }
+
+    public function addTag(Tag $tag): self
+    {
+        if (!$this->tags->contains($tag)) {
+            $this->tags[] = $tag;
+            $tag->addOrder($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTag(Tag $tag): self
+    {
+        if ($this->tags->removeElement($tag)) {
+            $tag->removeOrder($this);
+        }
+
+        return $this;
+    }
+
+    public function getOrderAnalyticReport(): ?OrderAnalyticReport
+    {
+        return $this->orderAnalyticReport;
+    }
+
+    public function setOrderAnalyticReport(OrderAnalyticReport $orderAnalyticReport): self
+    {
+        // set the owning side of the relation if necessary
+        if ($orderAnalyticReport->getOrder() !== $this) {
+            $orderAnalyticReport->setOrder($this);
+        }
+
+        $this->orderAnalyticReport = $orderAnalyticReport;
+
+        return $this;
+    }
+
+    public function getShippingAddress(): ?Address
     {
         return $this->shippingAddress;
     }
 
-    public function setShippingAddress(string $shippingAddress): void
+    public function setShippingAddress(?Address $shippingAddress): self
     {
         $this->shippingAddress = $shippingAddress;
-    }
 
-
-    public function getShippingZipcode(): string
-    {
-        return $this->shippingZipcode;
-    }
-
-    public function setShippingZipcode(string $shippingZipcode): void
-    {
-        $this->shippingZipcode = $shippingZipcode;
-    }
-
-    public function getShippingCountry(): string
-    {
-        return $this->shippingCountry;
-    }
-
-    public function setShippingCountry(string $shippingCountry): void
-    {
-        $this->shippingCountry = $shippingCountry;
-    }
-
-    /**
-     * @return ArrayCollection
-     */
-    public function getLines(): ArrayCollection
-    {
-        return $this->lines;
+        return $this;
     }
 }
